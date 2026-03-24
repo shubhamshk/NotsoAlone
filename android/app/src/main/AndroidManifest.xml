@@ -49,7 +49,7 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
-    <!-- Package visibility for url_launcher to open Google Maps -->
+    <!-- Package visibility for url_launcher to open Google Maps and UPI apps -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -58,6 +58,10 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
         </intent>
     </queries>
 </manifest>
