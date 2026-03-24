@@ -1,0 +1,12 @@
+Analyzing notsoalone2...
+
+  error - lib\screens\discovery_map_screen.dart:3:8 - Target of URI doesn't exist: 'package:latlong2/latlong2.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\discovery_map_screen.dart:33:20 - The method 'LatLng' isn't defined for the type '_DiscoveryMapScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'LatLng'. - undefined_method
+  error - lib\screens\discovery_map_screen.dart:89:32 - Invalid constant value. - invalid_constant
+  error - lib\screens\discovery_map_screen.dart:89:32 - The method 'LatLng' isn't defined for the type '_DiscoveryMapScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'LatLng'. - undefined_method
+   info - lib\screens\discovery_map_screen.dart:52:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\screens\profile_screen.dart:110:40 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\profile_screen.dart:134:57 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\profile_screen.dart:302:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+8 issues found.

@@ -1,0 +1,38 @@
+Analyzing notsoalone2...
+
+  error - lib\screens\discovery_map_screen.dart:3:8 - Target of URI doesn't exist: 'package:latlong2/latlong2.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\discovery_map_screen.dart:4:8 - Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\discovery_map_screen.dart:26:26 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\discovery_map_screen.dart:33:20 - The method 'LatLng' isn't defined for the type '_DiscoveryMapScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'LatLng'. - undefined_method
+  error - lib\screens\discovery_map_screen.dart:89:32 - Invalid constant value. - invalid_constant
+  error - lib\screens\discovery_map_screen.dart:89:32 - The method 'LatLng' isn't defined for the type '_DiscoveryMapScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'LatLng'. - undefined_method
+  error - lib\screens\otp_verify_screen.dart:2:8 - Target of URI doesn't exist: 'package:pinput/pinput.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\otp_verify_screen.dart:3:8 - Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\otp_verify_screen.dart:34:13 - Undefined class 'AuthResponse'. Try changing the name to the name of an existing class, or creating a class with the name 'AuthResponse'. - undefined_class
+  error - lib\screens\otp_verify_screen.dart:34:38 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\otp_verify_screen.dart:35:15 - Undefined name 'OtpType'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\otp_verify_screen.dart:51:10 - The name 'AuthException' isn't a type and can't be used in an on-catch clause. Try correcting the name to match an existing class. - non_type_in_catch_clause
+  error - lib\screens\otp_verify_screen.dart:102:13 - The method 'Pinput' isn't defined for the type '_OtpVerifyScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'Pinput'. - undefined_method
+  error - lib\screens\phone_login_screen.dart:2:8 - Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\phone_login_screen.dart:34:13 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\phone_login_screen.dart:44:10 - The name 'AuthException' isn't a type and can't be used in an on-catch clause. Try correcting the name to match an existing class. - non_type_in_catch_clause
+  error - lib\screens\profile_screen.dart:2:8 - Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\profile_screen.dart:30:22 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\profile_screen.dart:33:13 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\profile_screen.dart:53:10 - The name 'PostgrestException' isn't a type and can't be used in an on-catch clause. Try correcting the name to match an existing class. - non_type_in_catch_clause
+  error - lib\screens\profile_setup_screen.dart:2:8 - Target of URI doesn't exist: 'package:supabase_flutter/supabase_flutter.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\screens\profile_setup_screen.dart:39:22 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\profile_setup_screen.dart:42:13 - Undefined name 'Supabase'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\screens\profile_setup_screen.dart:60:10 - The name 'PostgrestException' isn't a type and can't be used in an on-catch clause. Try correcting the name to match an existing class. - non_type_in_catch_clause
+   info - lib\screens\discovery_map_screen.dart:4:8 - The imported package 'supabase_flutter' isn't a dependency of the importing package. Try adding a dependency for 'supabase_flutter' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - lib\screens\discovery_map_screen.dart:52:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\screens\otp_verify_screen.dart:2:8 - The imported package 'pinput' isn't a dependency of the importing package. Try adding a dependency for 'pinput' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - lib\screens\otp_verify_screen.dart:3:8 - The imported package 'supabase_flutter' isn't a dependency of the importing package. Try adding a dependency for 'supabase_flutter' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - lib\screens\phone_login_screen.dart:2:8 - The imported package 'supabase_flutter' isn't a dependency of the importing package. Try adding a dependency for 'supabase_flutter' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - lib\screens\profile_screen.dart:2:8 - The imported package 'supabase_flutter' isn't a dependency of the importing package. Try adding a dependency for 'supabase_flutter' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - lib\screens\profile_screen.dart:110:40 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\profile_screen.dart:134:57 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\profile_screen.dart:302:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\profile_setup_screen.dart:2:8 - The imported package 'supabase_flutter' isn't a dependency of the importing package. Try adding a dependency for 'supabase_flutter' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+
+34 issues found.
