@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -33,7 +34,23 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Sports Community',
       theme: AppTheme.buildTheme(),
-      home: const LoginScreen(),
+      home: const AuthGate(),
     );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  Widget build(BuildContext context) {
+    return Supabase.instance.client.auth.currentSession == null
+        ? const LoginScreen()
+        : const MainScreen();
   }
 }

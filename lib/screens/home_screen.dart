@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'all_sports_screen.dart';
 import 'group_chats_screen.dart';
 import 'venue_details_screen.dart';
 import 'edit_profile_screen.dart';
 import 'create_event_screen.dart';
+import 'medical_id_screen.dart';
 
 import '../services/supabase_service.dart';
 import '../services/location_service.dart';
@@ -47,7 +50,8 @@ class _HomeScreenState extends State<HomeScreen>
   String? _radarError;
 
   // Joined matches state
-  Set<int> _joinedMatchIds = {};
+  Set<String> _joinedMatchIds = {};
+  Map<String, dynamic>? _rawProfileData;
 
   @override
   void initState() {
@@ -80,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (mounted) {
         setState(() {
           _joinedMatchIds = (response as List)
-              .map((item) => int.tryParse(item['match_id'].toString()) ?? 0)
+              .map((item) => item['match_id'].toString())
               .toSet();
         });
       }
@@ -201,7 +205,6 @@ class _HomeScreenState extends State<HomeScreen>
               )
             : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        bottomNavigationBar: _buildBottomNavigationBar(context),
       ),
     );
   }
@@ -245,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen>
                       'No matches happening right now. Hit the + button to host one!',
                     ),
                   );
-                }
+                  }
                 final matches = snapshot.data!;
                 return ListView.builder(
                   padding: const EdgeInsets.only(bottom: 120),
@@ -255,10 +258,59 @@ class _HomeScreenState extends State<HomeScreen>
                     final title = match['title'] ?? 'Untitled';
                     final sport = match['sport'] ?? 'Unknown Sport';
                     final location = match['location'] ?? 'Unknown Location';
-                    final maxPlayers = match['max_players'] ?? 100;
-                    final joinedPlayers = match['joined_players'] ?? 0;
+                    final int maxPlayers = match['max_players'] ?? 100;
+                    final int joinedPlayers = match['joined_players'] ?? 0;
                     final bool isFull = joinedPlayers >= maxPlayers;
                     final String? imageUrl = match['image_url'] as String?;
+
+                    // ── Parse extra info from description JSON ──
+                    bool isPaid = false;
+                    String entryAmount = '0';
+                    String description = '';
+                    String orgName = '';
+                    String orgPhone = '';
+                    String orgEmail = '';
+                    String playgroundOwner = '';
+                    DateTime? endTime;
+
+                    try {
+                      final rawDesc = match['description'];
+                      if (rawDesc != null && rawDesc.toString().isNotEmpty) {
+                        final desc = jsonDecode(rawDesc.toString()) as Map<String, dynamic>;
+                        description = (desc['text'] ?? '').toString();
+                        isPaid = desc['is_paid'] == true;
+                        entryAmount = (desc['amount'] ?? '0').toString();
+                        orgName = (desc['org_name'] ?? '').toString();
+                        orgPhone = (desc['org_phone'] ?? '').toString();
+                        orgEmail = (desc['org_email'] ?? '').toString();
+                        playgroundOwner = (desc['owner'] ?? '').toString();
+                        if (desc['end_time'] != null) {
+                          endTime = DateTime.parse(desc['end_time'].toString());
+                        }
+                      }
+                    } catch (_) {}
+
+                    // ── Status Logic (Live Today / Live Now) ──
+                    final DateTime now = DateTime.now();
+                    DateTime? eventDate;
+                    try {
+                      if (match['event_date'] != null) {
+                        eventDate = DateTime.parse(match['event_date'].toString());
+                      }
+                    } catch (_) {}
+
+                    bool isToday = false;
+                    bool isLiveNow = false;
+                    if (eventDate != null) {
+                      isToday = eventDate.year == now.year && eventDate.month == now.month && eventDate.day == now.day;
+                      if (endTime != null) {
+                        isLiveNow = now.isAfter(eventDate) && now.isBefore(endTime);
+                      } else {
+                        // Fallback: Live if within 2 hours of start
+                        isLiveNow = now.isAfter(eventDate) && now.isBefore(eventDate.add(const Duration(hours: 2)));
+                      }
+                    }
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 24),
                       decoration: BoxDecoration(
@@ -271,155 +323,192 @@ class _HomeScreenState extends State<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ── Image header ──
-                          if (imageUrl != null && imageUrl.isNotEmpty)
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(16),
-                              ),
-                              child: Image.network(
-                                imageUrl,
-                                height: 160,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, progress) {
-                                  if (progress == null) return child;
-                                  return Container(
-                                    height: 160,
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Color(0xFF0052D0),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (_, _, _) =>
-                                    const SizedBox.shrink(),
-                              ),
-                            )
-                          else
-                            const SizedBox.shrink(),
+                          Stack(
+                            children: [
+                              if (imageUrl != null && imageUrl.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                  child: Image.network(
+                                    imageUrl,
+                                    height: 180,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        height: 180,
+                                        color: Colors.grey[200],
+                                        child: const Center(child: CircularProgressIndicator(color: Color(0xFF0052D0))),
+                                      );
+                                    },
+                                    errorBuilder: (_, _, _) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                                  ),
+                                )
+                              else
+                                Container(height: 120, decoration: BoxDecoration(gradient: LinearGradient(colors: [_primaryColor.withOpacity(0.1), _primaryColor.withOpacity(0.05)], begin: Alignment.topLeft, end: Alignment.bottomRight))),
+                              
+                              // Live / Today Badge
+                              if (isLiveNow)
+                                Positioned(top: 16, right: 16, child: _buildLiveBadge(isLive: true))
+                              else if (isToday)
+                                Positioned(top: 16, right: 16, child: _buildLiveBadge(isLive: false)),
+                            ],
+                          ),
+                          
                           // ── Text content ──
                           Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(20.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Title row + sport badge
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
                                         title,
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 18,
+                                          fontSize: 20,
                                           color: _textColor,
                                           fontFamily: 'Lexend',
                                         ),
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE1F5FE),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        sport,
-                                        style: const TextStyle(
-                                          color: Color(0xFF01579B),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
+                                    _buildSportBadge(sport, isPaid, entryAmount),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
+                                
+                                // Location row
                                 Row(
                                   children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: _textVariantColor,
-                                    ),
-                                    const SizedBox(width: 4),
+                                    Icon(Icons.location_on, size: 16, color: _primaryColor),
+                                    const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
                                         location,
-                                        style: TextStyle(
-                                          color: _textVariantColor,
-                                          fontSize: 14,
-                                        ),
+                                        style: TextStyle(color: _textVariantColor, fontSize: 14, fontWeight: FontWeight.w500),
                                       ),
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.people,
-                                      size: 16,
-                                      color: _textVariantColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Players: $joinedPlayers / ${maxPlayers == 100 ? "?" : maxPlayers}',
-                                      style: TextStyle(
-                                        color: _textVariantColor,
-                                        fontSize: 14,
+                                    if (eventDate != null)
+                                      Text(
+                                        "${eventDate.hour}:${eventDate.minute.toString().padLeft(2, '0')} ${eventDate.hour >= 12 ? 'PM' : 'AM'}",
+                                        style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
                                       ),
-                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
+                                
+                                // ── Match Description ──
+                                if (description.isNotEmpty) ...[
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    description,
+                                    style: TextStyle(color: _textColor.withOpacity(0.85), fontSize: 13, height: 1.4),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                                
+                                const Divider(height: 32, thickness: 1),
+                                
+                                // ── Organizer & Playground Details ──
+                                if (orgName.isNotEmpty || playgroundOwner.isNotEmpty) ...[
+                                  Text('ORGANIZER DETAILS', style: TextStyle(color: _textVariantColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                                  const SizedBox(height: 12),
+                                  if (orgName.isNotEmpty)
+                                    _buildDetailRow(Icons.person, orgName, label: 'Organizer'),
+                                  if (playgroundOwner.isNotEmpty)
+                                    _buildDetailRow(Icons.business, playgroundOwner, label: 'Playground Manager'),
+                                  
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      if (orgPhone.isNotEmpty)
+                                        Expanded(child: _buildContactButton(Icons.phone, 'Call', () => _launchURL('tel:$orgPhone'))),
+                                      if (orgPhone.isNotEmpty && orgEmail.isNotEmpty)
+                                        const SizedBox(width: 8),
+                                      if (orgEmail.isNotEmpty)
+                                        Expanded(child: _buildContactButton(Icons.email, 'Email', () => _launchURL('mailto:$orgEmail'))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
+
+                                // ── Join button with inline player count ──
                                 Builder(
                                   builder: (context) {
-                                    final matchIdStr = match['id'].toString();
-                                    final matchIdInt =
-                                        int.tryParse(matchIdStr) ?? 0;
-                                    final isJoined =
-                                        _joinedMatchIds.contains(matchIdInt);
+                                    final matchId = match['id'].toString();
+                                    final isJoined = _joinedMatchIds.contains(matchId);
+                                    final bool isClosed = eventDate != null && now.isAfter(eventDate) && !isLiveNow;
+
+                                    // Formatted player string based on maxPlayers
+                                    final playersStr = (maxPlayers <= 0 || maxPlayers == 100) 
+                                        ? '$joinedPlayers joined' 
+                                        : '$joinedPlayers/$maxPlayers';
+                                    
+                                    // Determine button color
+                                    final Color btnColor = isClosed
+                                        ? Colors.grey.shade600
+                                        : isFull
+                                            ? Colors.grey.shade400
+                                            : isJoined
+                                                ? Colors.green.shade500
+                                                : _primaryColor;
+                                            
+                                    // Determine button label
+                                    final String btnLabel = isClosed
+                                        ? 'Event Closed'
+                                        : isFull
+                                            ? 'Match Full'
+                                            : isJoined
+                                                ? '✓ Joined • $playersStr'
+                                                : isPaid
+                                                    ? 'Pay & Join • $playersStr'
+                                                    : 'Join Match • $playersStr';
 
                                     return SizedBox(
                                       width: double.infinity,
-                                      height: 50,
+                                      height: 56,
                                       child: ElevatedButton(
-                                        onPressed: isJoined || isFull
+                                        onPressed: (isJoined || isFull || isClosed)
                                             ? null
                                             : () async {
-                                                await UpiService.launchUPI(context, '50.00');
-                                                // Ideally, join match logic would be handled after successful payment
-                                                _fetchJoinedMatches();
+                                                if (isPaid && entryAmount != '0' && entryAmount.isNotEmpty) {
+                                                  await UpiService.launchUPI(context, entryAmount);
+                                                }
+                                                // Call joinMatch logic
+                                                try {
+                                                  await SupabaseService().joinMatch(matchId);
+                                                  _fetchJoinedMatches();
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Join failed: $e'),
+                                                        backgroundColor: Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
                                               },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: isJoined
-                                              ? Colors.green.shade100
-                                              : AppTheme.primary,
-                                          foregroundColor: isJoined
-                                              ? Colors.green
-                                              : Colors.white,
-                                          elevation: isJoined ? 0 : 2,
+                                          backgroundColor: btnColor,
+                                          foregroundColor: Colors.white,
+                                          disabledBackgroundColor: btnColor.withOpacity(0.6),
+                                          disabledForegroundColor: Colors.white70,
+                                          elevation: (isJoined || isFull || isClosed) ? 0 : 2,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(16),
                                           ),
                                         ),
                                         child: Text(
-                                          isFull
-                                              ? 'Match Full'
-                                              : (isJoined
-                                                  ? 'Already Joined'
-                                                  : 'Join Match'),
+                                          btnLabel,
                                           style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
+                                            fontFamily: 'Lexend',
                                           ),
                                         ),
                                       ),
@@ -429,6 +518,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ],
                             ),
                           ),
+
                         ],
                       ),
                     );
@@ -639,26 +729,268 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildHeader() {
+    final displayName = _userName.isNotEmpty ? _userName : 'Player';
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            Icon(Icons.menu, color: _textColor),
-            const SizedBox(width: 12),
-            Text(
-              'Sports Community',
-              style: TextStyle(
-                color: _textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            GestureDetector(
+              onTap: _showSosDialog,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.redAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: const Text(
+                  'SOS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    fontFamily: 'Lexend',
+                  ),
+                ),
               ),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hey $displayName!',
+                  style: TextStyle(
+                    color: _textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: _primaryColor, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      _userLocation,
+                      style: TextStyle(
+                        color: _textVariantColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
-        Icon(Icons.notifications_outlined, color: _textColor),
+        Row(
+          children: [
+            Icon(Icons.notifications_outlined, color: _textColor, size: 28),
+          ],
+        ),
       ],
     );
+  }
+
+  void _showSosDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('EMERGENCY SOS', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Who should we call?', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 20),
+            _buildSosAction(
+              icon: Icons.medical_information_rounded,
+              label: 'Medical ID',
+              color: Colors.redAccent,
+              onTap: () {
+                Navigator.pop(context);
+                _showMedicalIdDialog();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildSosAction(
+              icon: Icons.local_hospital_rounded,
+              label: 'Call Ambulance (102)',
+              color: Colors.red,
+              onTap: () => _launchCaller('102'),
+            ),
+            const SizedBox(height: 12),
+            _buildSosAction(
+              icon: Icons.local_police_rounded,
+              label: 'Call Police (100)',
+              color: Colors.blue,
+              onTap: () => _launchCaller('100'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  void _showMedicalIdDialog() {
+    final medical = _rawProfileData?['medical_data'] as Map<String, dynamic>? ?? {};
+    final fullName = _userName.isNotEmpty ? _userName : 'Athlete';
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: const BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.health_and_safety, color: Colors.white, size: 40),
+                    SizedBox(height: 8),
+                    Text('EMERGENCY MEDICAL ID', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      _buildMedicalRow('Full Name', fullName, Icons.person),
+                      _buildMedicalRow('Blood Group', medical['blood_group'] ?? 'Not Set', Icons.bloodtype, isAlert: true),
+                      _buildMedicalRow('Emergency SOS', medical['emergency_contact'] ?? 'Not Set', Icons.phone, isEmergency: true),
+                      _buildMedicalRow('Conditions', medical['medical_conditions'] ?? 'None Reported', Icons.medical_information),
+                      _buildMedicalRow('Address', medical['address'] ?? 'Not Available', Icons.location_on),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MedicalIdScreen()),
+                          ).then((refreshed) {
+                            if (refreshed == true) _loadUserProfile();
+                          });
+                        },
+                        icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.redAccent),
+                        label: const Text(
+                          'Edit Medical ID',
+                          style: TextStyle(
+                            fontFamily: 'Lexend',
+                            fontWeight: FontWeight.w600,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(
+                            fontFamily: 'Lexend',
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicalRow(String label, String value, IconData icon, {bool isAlert = false, bool isEmergency = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Icon(icon, color: isAlert || isEmergency ? Colors.redAccent : Colors.grey[400], size: 20),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w800)),
+                Text(value.isEmpty ? 'Not Set' : value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isEmergency ? Colors.redAccent : Colors.black87)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSosAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Future<void> _launchCaller(String number) async {
+    final Uri url = Uri.parse('tel:$number');
+    if (await canLaunchUrl(url)) await launchUrl(url);
   }
 
   // ── Load user profile from Supabase ──
@@ -675,6 +1007,7 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() {
           _userName = (data['full_name'] ?? data['username'] ?? '').toString();
           _userAvatarUrl = data.containsKey('avatar_url') ? data['avatar_url'] : null;
+          _rawProfileData = data;
         });
       }
     } catch (e) {
@@ -1457,77 +1790,151 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildBottomNavigationBar(BuildContext context) {
+
+
+  Widget _buildLiveBadge({required bool isLive}) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: _bgColor.withOpacity(0.9),
-        border: Border(
-          top: BorderSide(color: _outlineColor.withOpacity(0.1), width: 1),
-        ),
+        color: isLive ? Colors.red : Colors.orange,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (isLive ? Colors.red : Colors.orange).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: _primaryColor,
-        unselectedItemColor: _textVariantColor,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, _, _) => const AllSportsScreen(),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, _, _) => const GroupChatsScreen(),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          } else if (index == 3) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, _, _) => const EditProfileScreen(),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view_outlined),
-            label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLive)
+            const Padding(
+              padding: EdgeInsets.only(right: 6.0),
+              child: Icon(Icons.circle, size: 8, color: Colors.white),
+            ),
+          Text(
+            isLive ? 'LIVE NOW' : 'LIVE TODAY',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSportBadge(String sport, bool isPaid, String entryAmount) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isPaid) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.currency_rupee, size: 14, color: Colors.orange),
+                Text(
+                  entryAmount,
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE3F2FD),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            sport.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF1976D2),
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String value, {required String label}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 14, color: _primaryColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label.toUpperCase(), style: TextStyle(color: _textVariantColor, fontSize: 9, fontWeight: FontWeight.bold)),
+                Text(
+                  value,
+                  style: TextStyle(color: _textColor, fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactButton(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: _primaryColor.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: _primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(color: _primaryColor, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url)) {
+      debugPrint('Could not launch \$urlString');
+    }
   }
 }

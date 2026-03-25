@@ -1,9 +1,12 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
+import 'login_screen.dart';
 import '../widgets/mock_aadhaar_sheet.dart';
+import 'medical_id_screen.dart';
 import '../theme/app_theme.dart';
 
 const List<String> _allSports = [
@@ -50,6 +53,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _heightController = TextEditingController(text: '');
   final _weightController = TextEditingController(text: '');
   final _ageController = TextEditingController(text: '');
+  final _addressController = TextEditingController(text: '');
+  final _bloodGroupController = TextEditingController(text: '');
+  final _emergencyContactController = TextEditingController(text: '');
+  final _medicalConditionsController = TextEditingController(text: '');
 
   // BMI
   double? _bmi;
@@ -73,6 +80,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _heightController.dispose();
     _weightController.dispose();
     _ageController.dispose();
+    _addressController.dispose();
+    _bloodGroupController.dispose();
+    _emergencyContactController.dispose();
+    _medicalConditionsController.dispose();
     super.dispose();
   }
 
@@ -96,6 +107,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _aadhaarVerified = data.containsKey('aadhaar_verified') ? (data['aadhaar_verified'] ?? false) : false;
           _avatarUrl = data.containsKey('avatar_url') ? data['avatar_url'] : null;
           _bannerUrl = data.containsKey('banner_url') ? data['banner_url'] : null;
+          
+          if (data.containsKey('medical_data') && data['medical_data'] != null) {
+            final medical = data['medical_data'] as Map<String, dynamic>;
+            _addressController.text = (medical['address'] ?? '').toString();
+            _bloodGroupController.text = (medical['blood_group'] ?? '').toString();
+            _emergencyContactController.text = (medical['emergency_contact'] ?? '').toString();
+            _medicalConditionsController.text = (medical['medical_conditions'] ?? '').toString();
+          }
           // Load sports if stored as a list
           if (data.containsKey('sports_skills')) {
             final rawSports = data['sports_skills'];
@@ -159,7 +178,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // ── Image Picker ─────────────────────────────────────────
   Future<void> _pickBanner() async {
     final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200, maxHeight: 1200);
     if (img != null && mounted) {
       final bytes = await img.readAsBytes();
       setState(() => _bannerBytes = bytes);
@@ -168,7 +187,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 500, maxHeight: 500);
     if (img != null && mounted) {
       final bytes = await img.readAsBytes();
       setState(() => _avatarBytes = bytes);
@@ -281,24 +300,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       String? newBannerUrl = _bannerUrl;
 
       // Upload avatar if changed
+      // Professional Storage Upload with Base64 Fallback Bypass
       if (_avatarBytes != null) {
         try {
-          final path = '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await Supabase.instance.client.storage.from('avatars').uploadBinary(path, _avatarBytes!);
+          final fileName = 'avatar_${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final path = '${user.id}/$fileName';
+          
+          // 1. Attempt Cloud Storage Upload
+          await Supabase.instance.client.storage.from('avatars').uploadBinary(
+            path, 
+            _avatarBytes!,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
           newAvatarUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
+          debugPrint('Avatar uploaded to Cloud Storage: $newAvatarUrl');
         } catch (e) {
-          debugPrint('Avatar upload error (bucket may not exist): $e');
+          debugPrint('Storage Upload failed (buckets may be missing), using COMPRESSED Base64 Fallback: $e');
+          // 2. Fallback to Database Base64 String - CRITICAL: COMPRESS TO THUMBNAIL FOR DB
+          // Postgres Text columns can handle much, but large payloads can hit Postgrest/Nginx limits.
+          String base64Image = base64Encode(_avatarBytes!);
+          newAvatarUrl = "data:image/jpeg;base64,$base64Image";
+          
+          // If we have a lot of bytes, we might still fail. Let's log the size.
+          debugPrint('Base64 Length: ${newAvatarUrl?.length}');
         }
       }
 
-      // Upload banner if changed
+      // Banner Professional Storage Upload with Fallback
       if (_bannerBytes != null) {
         try {
-          final path = '${user.id}/banner_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await Supabase.instance.client.storage.from('banners').uploadBinary(path, _bannerBytes!);
+          final fileName = 'banner_${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final path = '${user.id}/$fileName';
+          
+          await Supabase.instance.client.storage.from('banners').uploadBinary(
+            path, 
+            _bannerBytes!,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
           newBannerUrl = Supabase.instance.client.storage.from('banners').getPublicUrl(path);
         } catch (e) {
-          debugPrint('Banner upload error (bucket may not exist): $e');
+          debugPrint('Banner Storage failed, using Base64 Fallback: $e');
+          String base64Image = base64Encode(_bannerBytes!);
+          newBannerUrl = "data:image/jpeg;base64,$base64Image";
         }
       }
 
@@ -315,6 +358,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'sports_skills': _sports,
         if (newAvatarUrl != null) 'avatar_url': newAvatarUrl,
         if (newBannerUrl != null) 'banner_url': newBannerUrl,
+        'medical_data': {
+          'address': _addressController.text.trim(),
+          'blood_group': _bloodGroupController.text.trim(),
+          'emergency_contact': _emergencyContactController.text.trim(),
+          'medical_conditions': _medicalConditionsController.text.trim(),
+        },
       };
 
       try {
@@ -382,40 +431,118 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // ── Build Helpers ─────────────────────────────────────────
-  Widget _sectionHeader(String title) {
+  Widget _buildSectionTitle(String title, {bool isAlert = false}) {
     return Row(
       children: [
-        Container(width: 4, height: 24, decoration: BoxDecoration(color: _primaryColor, borderRadius: BorderRadius.circular(4))),
+        Container(
+          width: 4,
+          height: 24,
+          decoration: BoxDecoration(
+            color: isAlert ? Colors.redAccent : _primaryColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
         const SizedBox(width: 12),
-        Text(title, style: TextStyle(fontFamily: 'Lexend', fontWeight: FontWeight.w600, fontSize: 20, color: _onSurface)),
+        Text(
+          title,
+          style: TextStyle(
+            fontFamily: 'Lexend',
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            color: isAlert ? Colors.redAccent : _onSurface,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController con, {TextInputType keyboard = TextInputType.text, IconData? icon, String? suffix}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-          child: Text(label, style: TextStyle(fontFamily: 'Lexend', fontWeight: FontWeight.w500, fontSize: 14, color: _onSurfaceVariant)),
-        ),
-        TextFormField(
-          controller: con,
-          keyboardType: keyboard,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: _surfaceContainerLowest,
-            suffixText: suffix,
-            prefixIcon: icon != null ? Icon(icon, color: _onSurfaceVariant) : null,
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _outlineVariant.withOpacity(0.3))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _primaryColor, width: 2)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+  Widget _buildMedicalIdCard() {
+    // Show a summary of what is currently saved
+    final bloodGroup = _bloodGroupController.text.trim();
+    final contact = _emergencyContactController.text.trim();
+    final conditions = _medicalConditionsController.text.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: GestureDetector(
+        onTap: () async {
+          final refreshed = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const MedicalIdScreen()),
+          );
+          if (refreshed == true) _loadProfile();
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.25)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          style: TextStyle(fontFamily: 'Manrope', fontSize: 14, color: _onSurface),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.health_and_safety, color: Colors.redAccent, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Medical ID',
+                      style: TextStyle(
+                        fontFamily: 'Lexend',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      bloodGroup.isNotEmpty
+                          ? 'Blood: $bloodGroup  •  ${contact.isNotEmpty ? "Contact saved" : "No contact"}'  
+                          : 'Tap to set up your Medical ID',
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 13,
+                        color: _onSurfaceVariant,
+                      ),
+                    ),
+                    if (conditions.isNotEmpty) ...[  
+                      const SizedBox(height: 4),
+                      Text(
+                        conditions,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          fontSize: 12,
+                          color: _onSurfaceVariant.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: _onSurfaceVariant),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -428,29 +555,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: _bgColor.withOpacity(0.8),
         elevation: 1,
         shadowColor: _outlineVariant.withOpacity(0.15),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: _onSurface),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-            }
-          },
-        ),
-        title: Text('Edit Profile', style: TextStyle(color: _onSurface, fontFamily: 'Lexend', fontWeight: FontWeight.w600, fontSize: 20)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: TextButton.styleFrom(foregroundColor: _primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-              child: _isSaving
-                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _primaryColor, strokeWidth: 2))
-                  : const Text('Save', style: TextStyle(fontFamily: 'Lexend', fontWeight: FontWeight.w500, fontSize: 16)),
-            ),
-          ),
-        ],
+        title: Text('Player Profile', style: TextStyle(color: _onSurface, fontFamily: 'Lexend', fontWeight: FontWeight.w600, fontSize: 20)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 140),
@@ -547,7 +652,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionHeader('Personal Details'),
+                  _buildSectionTitle('Personal Details'),
                   const SizedBox(height: 24),
                   _buildTextField('Full Name', _nameController, icon: Icons.person_outline),
                   const SizedBox(height: 16),
@@ -670,6 +775,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: _buildSectionTitle('Medical ID & Safety (SOS)', isAlert: true),
+            ),
+            const SizedBox(height: 16),
+            _buildMedicalIdCard(),
             const SizedBox(height: 40),
 
             // ── Aadhaar Verification ─────────────────────────
@@ -726,6 +838,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 40),
+
+            // ── Sign Out ─────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+                    if (context.mounted) {
+                      Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false);
+                    }
+                  },
+                  icon: const Icon(Icons.logout, color: Colors.red),
+                  label: const Text('Sign Out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Lexend')),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -758,6 +897,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Icon(Icons.check_circle, color: Colors.white),
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontFamily: 'Lexend',
+        fontWeight: FontWeight.w600,
+        fontSize: 20,
+        color: _onSurface,
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    IconData? icon,
+    TextInputType keyboard = TextInputType.text,
+    String? suffix,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _outlineVariant.withOpacity(0.1)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: TextField(
+          controller: controller,
+          keyboardType: keyboard,
+          style: TextStyle(fontFamily: 'Manrope', fontSize: 15, color: _onSurface),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(fontFamily: 'Manrope', color: _onSurfaceVariant, fontSize: 14),
+            prefixIcon: icon != null ? Icon(icon, color: _primaryColor, size: 20) : null,
+            suffixText: suffix,
+            suffixStyle: TextStyle(color: _onSurfaceVariant, fontFamily: 'Manrope'),
+            border: InputBorder.none,
           ),
         ),
       ),

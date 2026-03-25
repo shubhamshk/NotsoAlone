@@ -337,7 +337,6 @@ class _AllSportsScreenState extends State<AllSportsScreen> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: _buildBottomNav(context),
     ));
   }
 
@@ -424,40 +423,5 @@ class _AllSportsScreenState extends State<AllSportsScreen> {
     );
   }
 
-  Widget _buildBottomNav(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _bgColor.withOpacity(0.9),
-        border: Border(top: BorderSide(color: _outline.withOpacity(0.1), width: 1)),
-      ),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: _primaryColor,
-        unselectedItemColor: _onSurfaceVariant,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'Manrope'),
-        unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'Manrope'),
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-          if (index == 0) {
-            Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, __, ___) => const HomeScreen(), transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero));
-          } else if (index == 2) {
-            Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, __, ___) => const GroupChatsScreen(), transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero));
-          } else if (index == 3) {
-            Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, __, ___) => const EditProfileScreen(), transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero));
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), activeIcon: Icon(Icons.grid_view), label: 'Explore'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
-  }
+
 }

@@ -19,6 +19,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _orgNameController = TextEditingController();
+  final TextEditingController _orgPhoneController = TextEditingController();
+  final TextEditingController _orgEmailController = TextEditingController();
+  final TextEditingController _playgroundOwnerController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+
+  bool _isPaid = false;
 
   String _selectedSport = 'Soccer';
   int _maxPlayers = 10;
@@ -30,6 +37,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // Date & Time
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 18, minute: 0);
+  TimeOfDay _selectedEndTime = const TimeOfDay(hour: 19, minute: 0);
 
   // Map / location
   LatLng _mapCenter = const LatLng(20.5937, 78.9629); // India center
@@ -70,6 +78,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _orgNameController.dispose();
+    _orgPhoneController.dispose();
+    _orgEmailController.dispose();
+    _playgroundOwnerController.dispose();
+    _amountController.dispose();
     _mapController.dispose();
     super.dispose();
   }
@@ -166,6 +179,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     if (picked != null && mounted) setState(() => _selectedTime = picked);
   }
 
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedEndTime,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(colorScheme: ColorScheme.light(primary: _primaryColor)),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _selectedEndTime = picked);
+  }
+
   String _formatDate(DateTime d) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
@@ -201,13 +226,30 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         _selectedDate.year, _selectedDate.month, _selectedDate.day,
         _selectedTime.hour, _selectedTime.minute,
       );
+
+      final eventEndDateTime = DateTime(
+        _selectedDate.year, _selectedDate.month, _selectedDate.day,
+        _selectedEndTime.hour, _selectedEndTime.minute,
+      );
+
+      final completeDescription = jsonEncode({
+        'text': _descriptionController.text.trim(),
+        'org_name': _orgNameController.text.trim(),
+        'org_phone': _orgPhoneController.text.trim(),
+        'org_email': _orgEmailController.text.trim(),
+        'owner': _playgroundOwnerController.text.trim(),
+        'end_time': eventEndDateTime.toIso8601String(),
+        'is_paid': _isPaid,
+        'amount': _isPaid ? _amountController.text.trim() : null,
+      });
+
       await Supabase.instance.client.from('matches').insert({
         'title': title,
         'sport': _selectedSport,
         'location': location,
         'max_players': _maxPlayers,
         'organizer_id': user.id,
-        'description': _descriptionController.text.trim(),
+        'description': completeDescription,
         'event_date': eventDateTime.toIso8601String(),
         if (_selectedLatLng != null) 'latitude': _selectedLatLng!.latitude,
         if (_selectedLatLng != null) 'longitude': _selectedLatLng!.longitude,
@@ -320,6 +362,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               _textField(_descriptionController, 'Description', maxLines: 4),
               const SizedBox(height: 32),
 
+              // ── Organizer Details ────────────────────────────
+              _sectionLabel('ORGANIZER DETAILS'),
+              const SizedBox(height: 8),
+              _textField(_orgNameController, 'Organizer Name'),
+              const SizedBox(height: 12),
+              _textField(_orgPhoneController, 'Phone Number'),
+              const SizedBox(height: 12),
+              _textField(_orgEmailController, 'Email ID'),
+              const SizedBox(height: 12),
+              _textField(_playgroundOwnerController, 'Playground Owner / Manager'),
+              const SizedBox(height: 32),
+
               // ── Players ──────────────────────────────────────
               _buildCard(
                 icon: Icons.groups,
@@ -342,9 +396,32 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 icon: Icons.event_available,
                 title: 'Date & Time',
                 child: Column(children: [
-                  _pickerRow(_formatDate(_selectedDate), Icons.calendar_today, _pickDate),
+                  _pickerRow('Date: ' + _formatDate(_selectedDate), Icons.calendar_today, _pickDate),
                   const SizedBox(height: 8),
-                  _pickerRow(_formatTime(_selectedTime), Icons.schedule, _pickTime),
+                  _pickerRow('Starts at: ' + _formatTime(_selectedTime), Icons.schedule, _pickTime),
+                  const SizedBox(height: 8),
+                  _pickerRow('Ends at: ' + _formatTime(_selectedEndTime), Icons.schedule_send, _pickEndTime),
+                ]),
+              ),
+              const SizedBox(height: 32),
+
+              // ── Payment Details ─────────────────────────────
+              _buildCard(
+                icon: Icons.payments,
+                title: 'Entry Fee',
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('Is this a paid event?', style: TextStyle(fontFamily: 'Manrope', fontSize: 16, color: _onSurface)),
+                    Switch(
+                      value: _isPaid,
+                      onChanged: (val) => setState(() => _isPaid = val),
+                      activeColor: _primaryColor,
+                    ),
+                  ]),
+                  if (_isPaid) ...[
+                    const SizedBox(height: 16),
+                    _textField(_amountController, 'Amount (₹)', prefixIcon: Icon(Icons.currency_rupee, color: _primaryColor), keyboardType: TextInputType.number),
+                  ]
                 ]),
               ),
               const SizedBox(height: 32),
@@ -518,13 +595,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   Widget _sectionLabel(String text) => Text(text, style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.bold, fontSize: 12, color: _onSurfaceVariant, letterSpacing: 1));
 
-  Widget _textField(TextEditingController c, String hint, {int maxLines = 1, TextStyle? textStyle, Widget? prefixIcon}) =>
+  Widget _textField(TextEditingController c, String hint, {int maxLines = 1, TextStyle? textStyle, Widget? prefixIcon, TextInputType? keyboardType}) =>
     Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(color: _surfaceContainerLowest, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4)]),
       child: TextField(
         controller: c,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(fontFamily: 'Manrope', color: _outlineVariant), prefixIcon: prefixIcon, border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
         style: textStyle ?? TextStyle(fontFamily: 'Manrope', fontSize: 16, color: _onSurface),
       ),

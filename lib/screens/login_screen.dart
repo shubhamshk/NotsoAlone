@@ -121,180 +121,192 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _isOtpSent ? 'Verify OTP' : 'Welcome Back',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Lexend',
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: _onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _isOtpSent
-                    ? 'Enter the code sent to your email'
-                    : 'Enter your email to sign in',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 16,
-                  color: _outlineVariant,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              if (!_isOtpSent) ...[
-                // Email Input
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      hintText: 'Email Address',
-                      hintStyle: TextStyle(
-                        fontFamily: 'Manrope',
-                        color: _outlineVariant,
-                      ),
-                      border: InputBorder.none,
-                      icon: Icon(Icons.email_outlined, color: _primaryColor),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/login_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _isOtpSent ? 'Verify OTP' : 'Welcome Back',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Lexend',
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isOtpSent
+                        ? 'Enter the code sent to your email'
+                        : 'Enter your email to sign in',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Manrope',
                       fontSize: 16,
-                      color: _onSurface,
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
-                ),
-              ] else ...[
-                // OTP Input
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      hintText: '000000',
-                      hintStyle: TextStyle(
-                        fontFamily: 'Manrope',
-                        letterSpacing: 8,
-                        color: _outlineVariant,
-                      ),
-                      border: InputBorder.none,
-                    ),
-                    style: TextStyle(
-                      fontFamily: 'Manrope',
-                      fontSize: 24,
-                      letterSpacing: 8,
-                      fontWeight: FontWeight.bold,
-                      color: _onSurface,
-                    ),
-                  ),
-                ),
-              ],
+                  const SizedBox(height: 48),
 
-              const SizedBox(height: 32),
-
-              // Action Button
-              ElevatedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        if (_isOtpSent) {
-                          _verifyOtp();
-                        } else {
-                          _sendOtp();
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 2,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                  if (!_isOtpSent) ...[
+                    // Email Input
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: 'Email Address',
+                          hintStyle: TextStyle(
+                            fontFamily: 'Manrope',
+                            color: _outlineVariant,
+                          ),
+                          border: InputBorder.none,
+                          icon: Icon(Icons.email_outlined, color: _primaryColor),
                         ),
-                      )
-                    : Text(
-                        _isOtpSent ? 'Verify & Continue' : 'Send OTP',
-                        style: const TextStyle(
-                          fontFamily: 'Lexend',
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          color: _onSurface,
                         ),
                       ),
-              ),
-
-              if (_isOtpSent) ...[
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          setState(() {
-                            _isOtpSent = false;
-                            _otpController.clear();
-                          });
-                        },
-                  child: Text(
-                    'Change Email',
-                    style: TextStyle(
-                      fontFamily: 'Manrope',
-                      color: _primaryColor,
-                      fontWeight: FontWeight.w600,
                     ),
+                  ] else ...[
+                    // OTP Input
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: '000000',
+                          hintStyle: TextStyle(
+                            fontFamily: 'Manrope',
+                            letterSpacing: 8,
+                            color: _outlineVariant,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          fontSize: 24,
+                          letterSpacing: 8,
+                          fontWeight: FontWeight.bold,
+                          color: _onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // Action Button
+                  ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            if (_isOtpSent) {
+                              _verifyOtp();
+                            } else {
+                              _sendOtp();
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _isOtpSent ? 'Verify & Continue' : 'Send OTP',
+                            style: const TextStyle(
+                              fontFamily: 'Lexend',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                ),
-              ],
-            ],
+
+                  if (_isOtpSent) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              setState(() {
+                                _isOtpSent = false;
+                                _otpController.clear();
+                              });
+                            },
+                      child: const Text(
+                        'Change Email',
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

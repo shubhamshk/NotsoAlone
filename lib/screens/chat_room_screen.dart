@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 
@@ -23,7 +24,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
-  final Map<String, String> _senderNameCache = {};
+  final Map<String, Map<String, String?>> _senderProfileCache = {};
   bool _showScrollToBottom = false;
   bool _isSending = false;
   bool _showEmoji = false;
@@ -79,22 +80,26 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
-  Future<String> _getSenderName(String userId) async {
-    if (_senderNameCache.containsKey(userId)) {
-      return _senderNameCache[userId]!;
+  Future<Map<String, String?>> _getSenderProfile(String userId) async {
+    if (_senderProfileCache.containsKey(userId)) {
+      return _senderProfileCache[userId]!;
     }
     try {
       final data = await Supabase.instance.client
           .from('profiles')
-          .select('username')
+          .select('username, avatar_url')
           .eq('id', userId)
           .single();
-      final name = data['username'] ?? 'Athlete';
-      _senderNameCache[userId] = name;
-      return name;
+      final profile = {
+        'name': data['username']?.toString() ?? 'Athlete',
+        'avatar_url': data['avatar_url']?.toString(),
+      };
+      _senderProfileCache[userId] = profile;
+      return profile;
     } catch (e) {
-      _senderNameCache[userId] = 'Athlete';
-      return 'Athlete';
+      final profile = {'name': 'Athlete', 'avatar_url': null};
+      _senderProfileCache[userId] = profile;
+      return profile;
     }
   }
 
@@ -431,19 +436,43 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                       : CrossAxisAlignment.start,
                                   children: [
                                     if (showSenderName)
-                                      FutureBuilder<String>(
-                                        future: _getSenderName(message['user_id']),
+                                      FutureBuilder<Map<String, String?>>(
+                                        future: _getSenderProfile(message['user_id']),
                                         builder: (context, snap) {
+                                          final profile = snap.data;
                                           return Padding(
                                             padding: const EdgeInsets.only(bottom: 4, left: 12),
-                                            child: Text(
-                                              snap.data ?? '',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: AppTheme.primary.withOpacity(0.8),
-                                                fontWeight: FontWeight.w700,
-                                                fontFamily: 'Manrope',
-                                              ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (profile?['avatar_url'] != null)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(right: 6),
+                                                    child: Builder(
+                                                      builder: (context) {
+                                                        try {
+                                                          return CircleAvatar(
+                                                            radius: 10,
+                                                            backgroundImage: profile!['avatar_url']!.startsWith('data:image')
+                                                                ? MemoryImage(base64Decode(profile['avatar_url']!.split(',').last)) as ImageProvider
+                                                                : NetworkImage(profile['avatar_url']!),
+                                                          );
+                                                        } catch (e) {
+                                                          return const CircleAvatar(radius: 10, child: Icon(Icons.person, size: 12));
+                                                        }
+                                                      }
+                                                    ),
+                                                  ),
+                                                Text(
+                                                  profile?['name'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: AppTheme.primary.withOpacity(0.8),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontFamily: 'Manrope',
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           );
                                         },

@@ -88,4 +88,46 @@ class SupabaseService {
         .eq('match_id', matchId)
         .order('created_at', ascending: true);
   }
+
+  // Future<void> joinMatch(String matchId): Register a user as a participant and increment joined_players count.
+  Future<void> joinMatch(String matchId) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        debugPrint('Error joining match: No authenticated user.');
+        return;
+      }
+
+      // 1. Fetch current joined count and max players
+      final matchData = await _supabase
+          .from('matches')
+          .select('joined_players, max_players')
+          .eq('id', matchId)
+          .single();
+      
+      final int currentJoined = int.tryParse(matchData['joined_players'].toString()) ?? 0;
+      final int maxPlayers = int.tryParse(matchData['max_players'].toString()) ?? 100;
+
+      if (currentJoined >= maxPlayers) {
+        debugPrint('Match is already full.');
+        return;
+      }
+
+      // 2. Perform join (Insert into participants and Increment count)
+      // Note: In a production app, we'd use a Supabase RPC to make this atomic.
+      await _supabase.from('match_participants').insert({
+        'match_id': matchId,
+        'user_id': user.id,
+      });
+
+      await _supabase.from('matches').update({
+        'joined_players': currentJoined + 1,
+      }).eq('id', matchId);
+
+    } catch (e) {
+      debugPrint('Error joining match: $e');
+      rethrow;
+    }
+  }
 }
+

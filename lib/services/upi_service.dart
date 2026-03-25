@@ -18,9 +18,30 @@ class UpiService {
     );
 
     try {
-      if (await canLaunchUrl(upiUrl)) {
-        await launchUrl(upiUrl, mode: LaunchMode.externalApplication);
-        // Show success snackbar upon return
+      // Bypassing canLaunchUrl which is unreliable on Android 11+ for non-browser intents
+      bool launched = false;
+      try {
+        launched = await launchUrl(upiUrl, mode: LaunchMode.externalNonBrowserApplication);
+      } catch (e) {
+        debugPrint('UPI Generic Error: $e');
+      }
+
+      if (!launched) {
+        // Fallback specifically to Google Pay (Tez) protocol
+        final Uri tezUrl = Uri(
+          scheme: 'tez',
+          host: 'upi',
+          path: '/pay',
+          queryParameters: upiUrl.queryParameters,
+        );
+        try {
+          launched = await launchUrl(tezUrl, mode: LaunchMode.externalNonBrowserApplication);
+        } catch (e) {
+          debugPrint('Tez Fallback Error: $e');
+        }
+      }
+
+      if (launched) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Redirecting to UPI App...')),
@@ -29,7 +50,7 @@ class UpiService {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No UPI app found on this device.')),
+            const SnackBar(content: Text('Could not launch UPI application.')),
           );
         }
       }
