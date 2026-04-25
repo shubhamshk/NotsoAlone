@@ -16,6 +16,8 @@ import '../services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 import '../widgets/radar_map.dart';
+import '../widgets/location_search.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/upi_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -52,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen>
   // Joined matches state
   Set<String> _joinedMatchIds = {};
   Map<String, dynamic>? _rawProfileData;
+  final ValueNotifier<LatLng?> _locationFocusNotifier = ValueNotifier(null);
 
   @override
   void initState() {
@@ -220,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 16),
           _buildSearchBar(),
           const SizedBox(height: 16),
-          const RadarMapWidget(),
+          RadarMapWidget(locationFocusNotifier: _locationFocusNotifier),
           const SizedBox(height: 16),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -1273,27 +1276,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Search sports, venues, playpals etc',
-          hintStyle: TextStyle(color: _outlineColor.withOpacity(0.6)),
-          prefixIcon: Icon(Icons.search, color: _outlineColor),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-      ),
+    return LocationSearchWidget(
+      onLocationSelected: (lat, lng) {
+        _locationFocusNotifier.value = LatLng(lat, lng);
+      },
     );
   }
 

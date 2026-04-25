@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 import 'profile_setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
               .maybeSingle();
           if (!mounted) return;
           final destination = profile != null
-              ? const HomeScreen()
+              ? const MainScreen()
               : const ProfileSetupScreen();
           Navigator.pushAndRemoveUntil(
             context,

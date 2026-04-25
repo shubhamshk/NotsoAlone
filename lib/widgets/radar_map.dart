@@ -6,7 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/location_service.dart';
 
 class RadarMapWidget extends StatefulWidget {
-  const RadarMapWidget({super.key});
+  final ValueNotifier<LatLng?>? locationFocusNotifier;
+
+  const RadarMapWidget({super.key, this.locationFocusNotifier});
 
   @override
   State<RadarMapWidget> createState() => _RadarMapWidgetState();
@@ -24,6 +26,20 @@ class _RadarMapWidgetState extends State<RadarMapWidget> {
     super.initState();
     _fetchVenues();
     _initUserLocation();
+    widget.locationFocusNotifier?.addListener(_onLocationFocusChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.locationFocusNotifier?.removeListener(_onLocationFocusChanged);
+    super.dispose();
+  }
+
+  void _onLocationFocusChanged() {
+    final latLng = widget.locationFocusNotifier?.value;
+    if (latLng != null) {
+      mapController.move(latLng, 16.0);
+    }
   }
 
   Future<void> _initUserLocation() async {

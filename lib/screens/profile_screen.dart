@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 import '../widgets/mock_aadhaar_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -66,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       }
     } on PostgrestException catch (e) {

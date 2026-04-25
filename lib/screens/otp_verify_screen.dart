@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 import '../theme/app_theme.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
@@ -42,7 +42,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(builder: (context) => const MainScreen()),
           );
         }
       } else {

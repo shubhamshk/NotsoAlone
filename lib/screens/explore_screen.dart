@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 import 'group_chats_screen.dart';
 import 'edit_profile_screen.dart';
 import 'chat_room_screen.dart';
@@ -670,7 +670,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const HomeScreen(),
+                pageBuilder: (_, __, ___) => const MainScreen(initialIndex: 0),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
               ),
