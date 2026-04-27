@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/location_detail_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -35,6 +36,15 @@ class MyApp extends StatelessWidget {
       title: 'Sports Community',
       theme: AppTheme.buildTheme(),
       home: const AuthGate(),
+      onGenerateRoute: (settings) {
+        if (settings.name != null && settings.name!.startsWith('/place/')) {
+          final id = settings.name!.split('/')[2];
+          return MaterialPageRoute(
+            builder: (context) => LocationDetailScreen(placeId: id),
+          );
+        }
+        return null;
+      },
     );
   }
 }

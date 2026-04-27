@@ -431,6 +431,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  ImageProvider _getImageProvider(Uint8List? bytes, String? url, String defaultUrl) {
+    if (bytes != null) return MemoryImage(bytes);
+    if (url != null && url.isNotEmpty) {
+      if (url.startsWith('data:image')) {
+        try {
+          final base64String = url.split(',').last;
+          return MemoryImage(base64Decode(base64String));
+        } catch (e) {
+          debugPrint('Error decoding base64 image: $e');
+        }
+      } else {
+        return NetworkImage(url);
+      }
+    }
+    return NetworkImage(defaultUrl);
+  }
+
   Widget _buildSectionTitle(String title, {bool isAlert = false}) {
     return Row(
       children: [
@@ -576,8 +593,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         : Stack(
                             alignment: Alignment.center,
                             children: [
-                              Image.network(
-                                'https://lh3.googleusercontent.com/aida-public/AB6AXuBtmR7lVYu1kMP6zENVDohdnVf-ERL3s-_xeLyQInwyw7TIl5crgNyH2_KNzWh1hzStnxn74Ot-dJSolIpt2q30Yl6OD3O-3zWlP31YNgqMYBHefetZdhxV_Avl9gH4_YaViYmStSc2eqssN5uT5dsJNm20v3z8GF6sIafr7avwAc-7ReRdlBYCCiOi5ygD5jIwY-fGHlAJxRfDojrjjU4iSWkPmjZDfr5W4P9RO-YYXjJGDm6DIZdYeSy-eLHDoHkBxwVT9FqywD0',
+                              Image(
+                                image: _getImageProvider(
+                                  _bannerBytes,
+                                  _bannerUrl,
+                                  'https://lh3.googleusercontent.com/aida-public/AB6AXuBtmR7lVYu1kMP6zENVDohdnVf-ERL3s-_xeLyQInwyw7TIl5crgNyH2_KNzWh1hzStnxn74Ot-dJSolIpt2q30Yl6OD3O-3zWlP31YNgqMYBHefetZdhxV_Avl9gH4_YaViYmStSc2eqssN5uT5dsJNm20v3z8GF6sIafr7avwAc-7ReRdlBYCCiOi5ygD5jIwY-fGHlAJxRfDojrjjU4iSWkPmjZDfr5W4P9RO-YYXjJGDm6DIZdYeSy-eLHDoHkBxwVT9FqywD0'
+                                ),
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                                 height: 192,
@@ -622,12 +643,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: _bgColor, width: 4),
                             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
-                            image: _avatarBytes != null
-                                ? DecorationImage(image: MemoryImage(_avatarBytes!), fit: BoxFit.cover)
-                                : DecorationImage(
-                                    image: NetworkImage(_avatarUrl ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXKAbzAX7xFqDRWiHgcRJn2KbCqjLRhQh4GgnuaR669PU5XnQ3jlil448dp_s--0vKXF3BfMOGq7RQujBoKKt0B96tlcrBFAbtev82mNuJyA_1I-Izla9gzz5JvF-NBVP6PNNIRQngLfiZv0nphY8h_xdqXvVN8qtZpuunuz5YT_98eJvnYbrtIyvOc5j1G-Z2KYpzDn29mUliJPDlJBse3-o6xeVyEkvyx49f-qATaJGtO1HBoTjPNBfzrxPID0CEYBCgku7B8Hg'),
-                                    fit: BoxFit.cover,
-                                  ),
+                            image: DecorationImage(
+                              image: _getImageProvider(
+                                _avatarBytes,
+                                _avatarUrl,
+                                'https://lh3.googleusercontent.com/aida-public/AB6AXuDXKAbzAX7xFqDRWiHgcRJn2KbCqjLRhQh4GgnuaR669PU5XnQ3jlil448dp_s--0vKXF3BfMOGq7RQujBoKKt0B96tlcrBFAbtev82mNuJyA_1I-Izla9gzz5JvF-NBVP6PNNIRQngLfiZv0nphY8h_xdqXvVN8qtZpuunuz5YT_98eJvnYbrtIyvOc5j1G-Z2KYpzDn29mUliJPDlJBse3-o6xeVyEkvyx49f-qATaJGtO1HBoTjPNBfzrxPID0CEYBCgku7B8Hg'
+                              ),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         Positioned(

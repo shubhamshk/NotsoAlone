@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
+import '../screens/location_detail_screen.dart';
 
 class LocationSearchWidget extends StatefulWidget {
   final Function(double lat, double lng) onLocationSelected;
@@ -203,12 +204,17 @@ class _LocationSearchWidgetState extends State<LocationSearchWidget> {
 
         return InkWell(
           onTap: () {
+            final nav = Navigator.of(context);
             _controller.text = name;
             _focusNode.unfocus();
             _hideOverlay();
             if (lat != null && lng != null) {
               widget.onLocationSelected(lat, lng);
             }
+            final id = place['id'].toString();
+            nav.push(MaterialPageRoute(
+              builder: (context) => LocationDetailScreen(placeId: id),
+            ));
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
