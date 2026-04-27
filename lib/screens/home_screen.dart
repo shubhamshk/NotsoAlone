@@ -215,48 +215,60 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMatchFeedTab() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          _buildGreeting(),
-          const SizedBox(height: 16),
-          _buildSearchBar(),
-          const SizedBox(height: 16),
-          RadarMapWidget(locationFocusNotifier: _locationFocusNotifier),
-          const SizedBox(height: 16),
-          Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildGreeting(),
+                const SizedBox(height: 16),
+                _buildSearchBar(),
+                const SizedBox(height: 16),
+                RadarMapWidget(locationFocusNotifier: _locationFocusNotifier),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+          StreamBuilder<List<Map<String, dynamic>>>(
               stream: Supabase.instance.client
                   .from('matches')
                   .stream(primaryKey: ['id'])
                   .order('created_at', ascending: false),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF0052D0)),
+                  return const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFF0052D0)),
+                    ),
                   );
                 }
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error: \${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        'Error: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ),
                   );
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No matches happening right now. Hit the + button to host one!',
+                  return const SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        'No matches happening right now. Hit the + button to host one!',
+                      ),
                     ),
                   );
-                  }
+                }
                 final matches = snapshot.data!;
-                return ListView.builder(
+                return SliverPadding(
                   padding: const EdgeInsets.only(bottom: 120),
-                  itemCount: matches.length,
-                  itemBuilder: (context, index) {
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                     final match = matches[index];
                     final title = match['title'] ?? 'Untitled';
                     final sport = match['sport'] ?? 'Unknown Sport';
@@ -526,14 +538,16 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                  childCount: matches.length,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildRadarTab() {
     if (_radarLoading) {
@@ -736,60 +750,70 @@ class _HomeScreenState extends State<HomeScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            GestureDetector(
-              onTap: _showSosDialog,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.redAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: const Text(
-                  'SOS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    fontFamily: 'Lexend',
+        Expanded(
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: _showSosDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.redAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: const Text(
+                    'SOS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      fontFamily: 'Lexend',
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hey $displayName!',
-                  style: TextStyle(
-                    color: _textColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Row(
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.location_on, color: _primaryColor, size: 14),
-                    const SizedBox(width: 4),
                     Text(
-                      _userLocation,
+                      'Hey $displayName!',
                       style: TextStyle(
-                        color: _textVariantColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        color: _textColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: _primaryColor, size: 14),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _userLocation,
+                            style: TextStyle(
+                              color: _textVariantColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
         Row(
           children: [

@@ -36,6 +36,29 @@ class MyApp extends StatelessWidget {
       title: 'Sports Community',
       theme: AppTheme.buildTheme(),
       home: const AuthGate(),
+      builder: (context, child) {
+        return Container(
+          color: const Color(0xFFE5E7EB), // Beautiful subtle gray background for the sides
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480), // Perfect mobile proportion
+              child: Container(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
       onGenerateRoute: (settings) {
         if (settings.name != null && settings.name!.startsWith('/place/')) {
           final id = settings.name!.split('/')[2];
